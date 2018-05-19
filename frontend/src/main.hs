@@ -1,5 +1,6 @@
-import Reflex.Dom
 import Frontend
+import Reflex.Dom (run)
 
 main :: IO ()
-main = mainWidget frontend
+main = run frontend
+
