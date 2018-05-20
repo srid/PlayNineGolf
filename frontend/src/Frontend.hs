@@ -16,6 +16,8 @@ import Static
 
 import Common.Api
 
+-- TODO: A function to render cards. Take direct scan of the physical cards, but don't put 'em publicly.
+
 data Card
   = Card_MinusFive | Card_0 | Card_1 | Card_2 | Card_3 | Card_4 | Card_5
   | Card_6 | Card_7 | Card_8 | Card_9 | Card_10 | Card_11 | Card_12
@@ -31,8 +33,8 @@ deck = mconcat $ fmap f [minBound .. maxBound]
   where
     f c = replicate (cardCount c) c
 
-frontend :: JSM ()
-frontend = mainWidgetWithHead' (const head', const body)
+frontend :: (StaticWidget x (), Widget x ())
+frontend = (head', body)
   where
     head'= elAttr "link" ("rel" =: "stylesheet" <> "href" =: static @"semantic.min.css") blank
     body = do
