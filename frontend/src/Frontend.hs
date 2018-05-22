@@ -74,6 +74,11 @@ calcProbabilities
   -> [(Card, Double)]
 calcProbabilities inPile turned = [] -- TODO
 
+-- | Play a turn
+-- playTurn
+--   :: Int -- Player
+--   ->
+
 -- | Pop one card out of the pipe
 popPile
   :: Int  -- Number of cards on pile (unturned)
