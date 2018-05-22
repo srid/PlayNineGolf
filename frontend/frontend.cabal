@@ -10,6 +10,7 @@ library
                , reflex-dom
                , static
                , text
+               , jsaddle
   exposed-modules:
     Frontend
   ghc-options: -Wall
@@ -23,6 +24,7 @@ executable frontend
                , static
                , text
                , frontend
+               , jsaddle
   --TODO: Make these ghc-options optional
   ghc-options: -threaded
   if os(darwin)
