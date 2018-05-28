@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 module Frontend where
 
-import Control.Monad (forM_, void)
+import Control.Monad (forM, forM_, void)
 import Data.Bifunctor (second)
 import Data.List (group, sort)
 import Data.List (sortOn)
@@ -51,6 +51,23 @@ parseCard = f . read . T.unpack
       -5 -> Card_MinusFive
       otherwise -> error "bad number" -- XXX
 
+toText :: Card -> Text
+toText = T.pack . show . \case
+  Card_MinusFive -> -5
+  Card_0 -> 0
+  Card_1 -> 1
+  Card_2 -> 2
+  Card_3 -> 3
+  Card_4 -> 4
+  Card_5 -> 5
+  Card_6 -> 6
+  Card_7 -> 7
+  Card_8 -> 8
+  Card_9 -> 9
+  Card_10 -> 10
+  Card_11 -> 11
+  Card_12 -> 12
+
 cardCount :: Card -> Int
 cardCount = \case
   Card_MinusFive -> 4
@@ -76,34 +93,53 @@ frontend = (head', body)
         controlWidget
         showProbabilities deck
 
+cardButton :: MonadWidget t m => Card -> m (Event t Card)
+cardButton card = fmap (fmap (const card) . domEvent Click . fst) $
+  elClass' "button" "ui button" $ text $ toText card
+
 controlWidget :: MonadWidget t m => m ()
 controlWidget = divClass "ui raised segment" $ do
   let total = length deck
   probabilities <- divClass "ui form" $ do
-    pile <- divClass "field" $ do
-      -- TODO: Use an increment (number) widget here
-      el "label" $ text "Pile count (unturned cards)"
-      value <$> textInput (def & textInputConfig_initialValue .~ T.pack (show total))
-    -- TODO: Use a list widget here (to which we can append cards)
-    -- Or replace the input with 13 buttons (same for pile count)
-    turned <- divClass "field" $ do
-      el "label" $ text "Turned cards"
-      value <$> textInput def
-    return $ zipDynWith calcProbabilities
-      (parsePile <$> pile)
-      (parseCards <$> turned)
+    jouers :: Dynamic t Int <- fmap (fmap $ read . T.unpack) $ divClass "field" $ do
+      el "label" $ text "Number of players"
+      value <$> textInput (def & textInputConfig_initialValue .~ "4")
+    piger <- divClass "field" $ do
+      el "label" $ text "Took from common pile:"
+      fmap leftmost $ forM cardTypes cardButton
+    tourner <- divClass "field" $ do
+      el "label" $ text "Took from player pile:"
+      fmap leftmost $ forM cardTypes cardButton
+
+    turnedCards <- foldDyn (<>) mempty $ ffor (leftmost [piger, tourner]) $ \c -> [c]
+    pigedCards <- foldDyn (<>) mempty $ ffor (leftmost [piger]) $ \c -> [c]
+    playerTurnedCards <- foldDyn (<>) mempty $ ffor tourner $ \c -> [c]
+    let availableCount = zipDynWith (\players cs -> length deck - 8 * players - length cs) jouers pigedCards
+    dynText $ fmap (T.pack . show) $ availableCount
+    dynText $ fmap (T.pack . show) $ turnedCards
+
+    -- pile <- divClass "field" $ do
+    --   -- TODO: Use an increment (number) widget here
+    --   el "label" $ text "Pile count (unturned cards)"
+    --   value <$> textInput (def & textInputConfig_initialValue .~ T.pack (show total))
+    -- -- TODO: Use a list widget here (to which we can append cards)
+    -- -- Or replace the input with 13 buttons (same for pile count)
+    -- turned <- divClass "field" $ do
+    --   el "label" $ text "Turned cards"
+    --   value <$> textInput def
+
+    return $ zipDynWith calcProbabilities availableCount turnedCards
+
   divClass "ui inverted segment" $ do
     divClass "ui header" $ text "Probabilités"
     divClass "ui content" $ do
       void $ dyn $ ffor probabilities $ \p' -> forM_ p' $ \(c, p) -> do
-        elClass "table" "ui definition" $ do
+        elClass "table" "ui inverted padded definition table" $ do
           el "tr" $ do
-            el "td" $ text $ T.pack $ show c
+            el "td" $ text $ toText c
             el "td" $ text $ T.pack $ showPerc p
   return ()
   where
-    parsePile = read . T.unpack
-    parseCards = fmap parseCard . T.words
     showPerc = Text.Printf.printf "%.2f%%" . (* 100)
 
 showProbabilities :: MonadWidget t m => [Card] -> m ()
