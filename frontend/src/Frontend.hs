@@ -2,12 +2,15 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 module Frontend where
 
 import Control.Monad (forM_)
 import Data.List (group, sort)
 import Data.Semigroup ((<>))
+import Data.Text (Text)
 import qualified Data.Text as T
 
 import Language.Javascript.JSaddle (JSM)
@@ -21,13 +24,34 @@ import Common.Api
 data Card
   = Card_MinusFive | Card_0 | Card_1 | Card_2 | Card_3 | Card_4 | Card_5
   | Card_6 | Card_7 | Card_8 | Card_9 | Card_10 | Card_11 | Card_12
-  deriving (Eq, Show, Ord, Bounded, Enum)
+  deriving (Eq, Show, Ord, Bounded, Enum, Read)
+
+parseCard :: Text -> Card
+parseCard = f . read . T.unpack
+  where
+    f = \case
+      0 -> Card_0
+      1 -> Card_1
+      2 -> Card_2
+      3 -> Card_3
+      4 -> Card_4
+      5 -> Card_5
+      6 -> Card_6
+      7 -> Card_7
+      8 -> Card_8
+      9 -> Card_9
+      10 -> Card_10
+      11 -> Card_11
+      12 -> Card_12
+      -5 -> Card_MinusFive
+      otherwise -> error "bad number" -- XXX
 
 cardCount :: Card -> Int
 cardCount = \case
   Card_MinusFive -> 4
   _ -> 8
 
+-- | Entire deck of Play Nine cards
 deck :: [Card]
 deck = mconcat $ fmap f [minBound .. maxBound]
   where
@@ -45,13 +69,18 @@ frontend = (head', body)
 
 controlWidget :: MonadWidget t m => m ()
 controlWidget = divClass "ui raised segment" $ do
-  -- TODO: Use an increment (number) widget here
-  pile <- value <$> textInput def
-  -- TODO: Use a list widget here (to which we can append cards)
-  turned <- value <$> textInput def
-  let probabilities = zipDynWith calcProbabilities
-          (parsePile <$> pile)
-          (parseCards <$> turned)
+  probabilities <- divClass "ui form" $ do
+    pile <- divClass "field" $ do
+      -- TODO: Use an increment (number) widget here
+      el "label" $ text "Pile count"
+      value <$> textInput (def & textInputConfig_initialValue .~ "0")
+    -- TODO: Use a list widget here (to which we can append cards)
+    turned <- divClass "field" $ do
+      el "label" $ text "Turned cards"
+      value <$> textInput def
+    return $ zipDynWith calcProbabilities
+      (parsePile <$> pile)
+      (parseCards <$> turned)
   divClass "ui segment" $ do
     divClass "ui header" $ text "Probabilities"
     divClass "ui contenet" $ do
@@ -59,7 +88,7 @@ controlWidget = divClass "ui raised segment" $ do
   return ()
   where
     parsePile = read . T.unpack
-    parseCards _ = []
+    parseCards = fmap parseCard . T.words
 
 showProbabilities :: MonadWidget t m => [Card] -> m ()
 showProbabilities cards = divClass "ui cards" $ do
@@ -72,7 +101,7 @@ calcProbabilities
   :: Int  -- Number of cards on pile (unturned)
   -> [Card] -- Cards on the table that are turned
   -> [(Card, Double)]
-calcProbabilities inPile turned = [] -- TODO
+calcProbabilities inPile turned = map (, 1.0) turned -- TODO
 
 -- | Play a turn
 -- playTurn
