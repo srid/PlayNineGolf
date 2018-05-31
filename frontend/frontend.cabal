@@ -11,6 +11,7 @@ library
                , static
                , text
                , jsaddle
+               , multiset
   exposed-modules:
     Frontend
   ghc-options: -Wall
